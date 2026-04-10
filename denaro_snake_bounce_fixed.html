@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DENARO - Snake Bounce</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; touch-action: none; -webkit-touch-callout: none; user-select: none; }
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-family: 'Nunito', sans-serif; overflow: hidden; position: fixed; width: 100%; height: 100%; }
+        #game { width: 100vw; height: 100vh; display: block; position: absolute; top: 0; left: 0; }
+        .ui { position: fixed; z-index: 10; pointer-events: none; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between; padding: 75px 20px 20px 20px; }
+        .header { display: flex; justify-content: space-between; gap: 15px; }
+        .score-box { background: rgba(255,255,255,0.95); border: 4px solid #fff; padding: 10px 20px; border-radius: 25px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.2); min-width: 80px; }
+        .score-label { color: #888; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+        .score-val { color: #667eea; font-size: 28px; font-weight: 800; font-family: 'Fredoka One', cursive; }
+        .best-val { color: #f093fb; font-size: 24px; font-weight: 800; font-family: 'Fredoka One', cursive; }
+        .combo-display { 
+            position: fixed; 
+            top: 10px; 
+            left: 50%; 
+            transform: translateX(-50%) scale(0); 
+            font-size: 28px; 
+            font-weight: 800;
+            font-family: 'Fredoka One', cursive;
+            color: #ff6b6b;
+            text-shadow: 0 2px 0 #d63031, 0 2px 8px rgba(0,0,0,0.3);
+            pointer-events: none;
+            z-index: 40;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            background: rgba(255,255,255,0.95);
+            padding: 6px 18px;
+            border-radius: 20px;
+            border: 2px solid #ff6b6b;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        }
+        .combo-display.show { transform: translateX(-50%) scale(1); }
+        .combo-timer {
+            position: fixed;
+            top: 52px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150px;
+            height: 6px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 3px;
+            overflow: hidden;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .combo-timer.show { opacity: 1; }
+        .combo-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b, #ffd93d);
+            width: 100%;
+            transition: width 0.1s linear;
+        }
+        .overlay { position: fixed; inset: 0; background: linear-gradient(135deg, rgba(102,126,234,0.95) 0%, rgba(118,75,162,0.95) 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; pointer-events: auto; }
+        .title { color: #fff; font-size: 72px; font-weight: 800; font-family: 'Fredoka One', cursive; text-shadow: 0 4px 0 #764ba2, 0 8px 16px rgba(0,0,0,0.3); margin-bottom: 10px; animation: bounce 2s infinite; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .subtitle { color: #ffd93d; font-size: 24px; margin-bottom: 8px; font-weight: 700; }
+        .sicilian { color: #fff; font-size: 18px; margin-bottom: 40px; font-style: italic; }
+        .btn { background: linear-gradient(135deg, #ffd93d 0%, #ff6b6b 100%); border: none; color: #fff; padding: 20px 60px; font-size: 24px; font-weight: 800; font-family: 'Fredoka One', cursive; cursor: pointer; border-radius: 50px; letter-spacing: 2px; margin: 10px; box-shadow: 0 8px 0 #d63031, 0 15px 30px rgba(0,0,0,0.3); transition: all 0.1s; }
+        .btn:active { transform: translateY(8px); box-shadow: 0 0 0 #d63031, 0 5px 15px rgba(0,0,0,0.3); }
+        .btn-secondary { background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); box-shadow: 0 8px 0 #2d3436; }
+        .btn-secondary:active { box-shadow: 0 0 0 #2d3436, 0 5px 15px rgba(0,0,0,0.3); }
+        .hidden { display: none !important; }
+        .tap-hint { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 16px; opacity: 0.9; pointer-events: none; text-align: center; background: rgba(0,0,0,0.3); padding: 12px 24px; border-radius: 30px; font-weight: 700; }
+        .game-over-title { color: #ff6b6b; font-size: 48px; font-weight: 800; font-family: 'Fredoka One', cursive; text-shadow: 0 4px 0 #d63031; margin-bottom: 20px; }
+        .final-score { color: #fff; font-size: 64px; font-weight: 800; font-family: 'Fredoka One', cursive; text-shadow: 0 4px 0 rgba(0,0,0,0.2); margin-bottom: 10px; }
+        .highscore { color: #ffd93d; font-size: 20px; margin-bottom: 30px; font-weight: 700; }
+        .new-record {
+            color: #ffd93d;
+            font-size: 28px;
+            font-weight: 800;
+            font-family: 'Fredoka One', cursive;
+            text-shadow: 0 4px 0 #d63031;
+            margin-bottom: 20px;
+            animation: pulse 0.5s infinite;
+        }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+    </style>
+</head>
+<body>
+    <canvas id="game"></canvas>
+    <div class="ui">
+        <div class="header">
+            <div class="score-box"><div class="score-label">Denaro</div><div id="score" class="score-val">€0</div></div>
+            <div class="score-box"><div class="score-label">Combo</div><div id="combo" class="score-val" style="color:#ff6b6b">x1</div></div>
+            <div class="score-box"><div class="score-label">Record</div><div id="highscore" class="best-val">€0</div></div>
+        </div>
+    </div>
+    <div class="combo-display" id="comboDisplay">COMBO x2!</div>
+    <div class="combo-timer" id="comboTimer"><div class="combo-bar" id="comboBar"></div></div>
+    <div class="tap-hint hidden" id="tapHint">👆 TAP per girare • SWIPE per muovere</div>
+    <div id="start-screen" class="overlay">
+        <div class="title">DENARO</div>
+        <div class="subtitle">🐍 Snake Bounce</div>
+        <div class="sicilian">Talia chi fazzu na 5 minuti</div>
+        <button class="btn" id="startBtn">▶ GIOCA!</button>
+    </div>
+    <div id="game-over" class="overlay hidden">
+        <div class="game-over-title">GAME OVER</div>
+        <div class="new-record hidden" id="newRecord">🏆 NUOVO RECORD!</div>
+        <div class="final-score" id="finalScore">€0</div>
+        <div class="highscore" id="finalHigh">Record: €0</div>
+        <button class="btn" id="restartBtn">↻ RIPROVA</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+        function initAudio() { if(!audioCtx) audioCtx = new AudioContext(); if(audioCtx.state === 'suspended') audioCtx.resume(); }
+        function playSound(type) {
+            if(!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+            if(type === 'move') { osc.frequency.setValueAtTime(400, now); gain.gain.setValueAtTime(0.1, now); osc.start(now); osc.stop(now + 0.05); }
+            else if(type === 'eat') { osc.frequency.setValueAtTime(600 + combo * 50, now); osc.frequency.exponentialRampToValueAtTime(800 + combo * 100, now + 0.15); gain.gain.setValueAtTime(0.2, now); osc.type = 'sine'; osc.start(now); osc.stop(now + 0.15); }
+            else if(type === 'combo') { osc.frequency.setValueAtTime(400, now); osc.frequency.exponentialRampToValueAtTime(1200, now + 0.3); gain.gain.setValueAtTime(0.3, now); osc.type = 'square'; osc.start(now); osc.stop(now + 0.3); }
+            else if(type === 'die') { osc.frequency.setValueAtTime(200, now); osc.frequency.exponentialRampToValueAtTime(80, now + 0.6); gain.gain.setValueAtTime(0.3, now); osc.type = 'sawtooth'; osc.start(now); osc.stop(now + 0.6); }
+            else if(type === 'bounce') { osc.frequency.setValueAtTime(150, now); gain.gain.setValueAtTime(0.25, now); osc.type = 'sine'; osc.start(now); osc.stop(now + 0.15); }
+        }
+        
+        const canvas = document.getElementById('game');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB);
+        
+        const viewSize = 24;
+        let camera;
+        function updateCamera() {
+            const a = window.innerWidth / window.innerHeight;
+            if(a > 1) {
+                camera = new THREE.OrthographicCamera(-viewSize * a / 2, viewSize * a / 2, viewSize / 2, -viewSize / 2, 1, 1000);
+            } else {
+                camera = new THREE.OrthographicCamera(-viewSize / 2, viewSize / 2, viewSize / (2 * a), -viewSize / (2 * a), 1, 1000);
+            }
+            camera.position.set(0, 25, 0);
+            camera.lookAt(0, 0, 0);
+        }
+        updateCamera();
+        
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.SoftShadowMap;
+        
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const dirLight = new THREE.DirectionalLight(0xfff5e6, 0.8);
+        dirLight.position.set(10, 20, 10);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        scene.add(dirLight);
+        
+        const fillLight = new THREE.DirectionalLight(0xe0f7fa, 0.4);
+        fillLight.position.set(-10, 10, -10);
+        scene.add(fillLight);
+        
+        const FIELD_SIZE = 20;
+        const HALF_FIELD = FIELD_SIZE / 2;
+        
+        const floorGeo = new THREE.CircleGeometry(15, 64);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x8bc34a, roughness: 1 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -0.2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+        
+        const fieldGeo = new THREE.PlaneGeometry(FIELD_SIZE, FIELD_SIZE);
+        const fieldMat = new THREE.MeshStandardMaterial({ color: 0x7cb342, roughness: 1 });
+        const field = new THREE.Mesh(fieldGeo, fieldMat);
+        field.rotation.x = -Math.PI / 2;
+        field.position.y = -0.1;
+        field.receiveShadow = true;
+        scene.add(field);
+        
+        const borderThickness = 0.5;
+        const borderMat = new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+        const borderTop = new THREE.Mesh(new THREE.BoxGeometry(FIELD_SIZE + borderThickness*2, 0.8, borderThickness), borderMat);
+        borderTop.position.set(0, 0.4, -HALF_FIELD - borderThickness/2);
+        scene.add(borderTop);
+        const borderBottom = new THREE.Mesh(new THREE.BoxGeometry(FIELD_SIZE + borderThickness*2, 0.8, borderThickness), borderMat);
+        borderBottom.position.set(0, 0.4, HALF_FIELD + borderThickness/2);
+        scene.add(borderBottom);
+        const borderLeft = new THREE.Mesh(new THREE.BoxGeometry(borderThickness, 0.8, FIELD_SIZE), borderMat);
+        borderLeft.position.set(-HALF_FIELD - borderThickness/2, 0.4, 0);
+        scene.add(borderLeft);
+        const borderRight = new THREE.Mesh(new THREE.BoxGeometry(borderThickness, 0.8, FIELD_SIZE), borderMat);
+        borderRight.position.set(HALF_FIELD + borderThickness/2, 0.4, 0);
+        scene.add(borderRight);
+        
+        function createFlower(x, z) {
+            const flower = new THREE.Group();
+            const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.4, 8), new THREE.MeshStandardMaterial({ color: 0x4caf50 }));
+            stem.position.y = 0.2;
+            flower.add(stem);
+            const colors = [0xff6b6b, 0xffd93d, 0x74b9ff, 0xfd79a8];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            const petalGeo = new THREE.SphereGeometry(0.15, 8, 8);
+            const petalMat = new THREE.MeshStandardMaterial({ color: color });
+            for(let i = 0; i < 5; i++) {
+                const petal = new THREE.Mesh(petalGeo, petalMat);
+                const angle = (i / 5) * Math.PI * 2;
+                petal.position.set(Math.cos(angle) * 0.15, 0.4, Math.sin(angle) * 0.15);
+                petal.scale.y = 0.6;
+                flower.add(petal);
+            }
+            const center = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshStandardMaterial({ color: 0xffeb3b }));
+            center.position.y = 0.4;
+            flower.add(center);
+            flower.position.set(x, 0, z);
+            flower.scale.setScalar(0.8 + Math.random() * 0.4);
+            scene.add(flower);
+        }
+        
+        for(let i = 0; i < 20; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 12 + Math.random() * 6;
+            createFlower(Math.cos(angle) * radius, Math.sin(angle) * radius);
+        }
+        
+        const headGeo = new THREE.SphereGeometry(0.45, 32, 32);
+        const bodyGeo = new THREE.SphereGeometry(0.38, 32, 32);
+        const snakeMat = new THREE.MeshStandardMaterial({ color: 0x66bb6a, roughness: 0.4 });
+        const headMat = new THREE.MeshStandardMaterial({ color: 0x43a047, roughness: 0.4 });
+        const bellyMat = new THREE.MeshStandardMaterial({ color: 0xc8e6c9, roughness: 0.5 });
+        const eyeWhiteGeo = new THREE.SphereGeometry(0.2, 16, 16);
+        const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        const pupilGeo = new THREE.SphereGeometry(0.12, 16, 16);
+        const pupilMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+        
+        // SISTEMA MONETE MULTIPLE
+        let coins = [];
+        const MAX_COINS = 3;
+        
+        function createCoin(index) {
+            const coin = new THREE.Group();
+            
+            // Ombra
+            const shadowGeo = new THREE.CircleGeometry(0.7, 32);
+            const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3 });
+            const shadow = new THREE.Mesh(shadowGeo, shadowMat);
+            shadow.rotation.x = -Math.PI / 2;
+            shadow.position.y = 0.05;
+            coin.add(shadow);
+            
+            // Corona
+            const outerRing = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.12, 16, 32), new THREE.MeshStandardMaterial({ color: 0xffb300, metalness: 0.4, roughness: 0.3, emissive: 0xff8f00, emissiveIntensity: 0.2 }));
+            outerRing.rotation.x = Math.PI / 2;
+            coin.add(outerRing);
+            
+            // Disco
+            const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.58, 0.15, 32), new THREE.MeshStandardMaterial({ color: 0xffd54f, metalness: 0.3, roughness: 0.4 }));
+            disc.rotation.x = Math.PI / 2;
+            coin.add(disc);
+            
+            // Euro
+            const euroGroup = new THREE.Group();
+            const barH = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.05), new THREE.MeshStandardMaterial({ color: 0x5d4037 }));
+            euroGroup.add(barH);
+            const barV1 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.5, 0.05), new THREE.MeshStandardMaterial({ color: 0x5d4037 }));
+            barV1.position.x = -0.12;
+            euroGroup.add(barV1);
+            const barV2 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.5, 0.05), new THREE.MeshStandardMaterial({ color: 0x5d4037 }));
+            barV2.position.x = 0.12;
+            euroGroup.add(barV2);
+            const curveGeo = new THREE.TorusGeometry(0.2, 0.06, 8, 16, Math.PI);
+            const curveMat = new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+            const curve1 = new THREE.Mesh(curveGeo, curveMat);
+            curve1.position.set(0, 0.15, 0);
+            euroGroup.add(curve1);
+            const curve2 = new THREE.Mesh(curveGeo, curveMat);
+            curve2.position.set(0, -0.15, 0);
+            curve2.rotation.z = Math.PI;
+            euroGroup.add(curve2);
+            euroGroup.position.z = 0.1;
+            coin.add(euroGroup);
+            
+            // Luce
+            const glow = new THREE.PointLight(0xffd700, 0.8, 3);
+            glow.position.set(0, 1, 0);
+            coin.add(glow);
+            
+            // Alone
+            const haloGeo = new THREE.RingGeometry(0.9, 1.1, 32);
+            const haloMat = new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
+            const halo = new THREE.Mesh(haloGeo, haloMat);
+            halo.rotation.x = Math.PI / 2;
+            halo.position.y = -0.1;
+            coin.add(halo);
+            
+            coin.userData = { index: index, eaten: false };
+            scene.add(coin);
+            return coin;
+        }
+        
+        function placeCoins() {
+            // Rimuovi monete mangiate
+            coins = coins.filter(c => {
+                if(c.userData.eaten) {
+                    scene.remove(c);
+                    return false;
+                }
+                return true;
+            });
+            
+            // Aggiungi monete fino a MAX_COINS
+            while(coins.length < MAX_COINS) {
+                const coin = createCoin(coins.length);
+                let x, z, attempts = 0;
+                do { 
+                    x = (Math.random() * 16) - 8; 
+                    z = (Math.random() * 16) - 8; 
+                    attempts++; 
+                } while(attempts < 50 && (
+                    snake.some(s => Math.abs(s.x - x) < 1.5 && Math.abs(s.z - z) < 1.5) ||
+                    coins.some(c => Math.abs(c.position.x - x) < 2 && Math.abs(c.position.z - z) < 2)
+                ));
+                
+                coin.position.set(x, 1.2, z);
+                coins.push(coin);
+            }
+        }
+        
+        const trailParticles = [];
+        function createTrailParticle(x, y, z) {
+            const geo = new THREE.SphereGeometry(0.1, 8, 8);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xa5d6a7, transparent: true, opacity: 0.4 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, z);
+            scene.add(mesh);
+            return { mesh, life: 1.0 };
+        }
+        
+        const particles = [];
+        function createParticle(x, y, z, color) {
+            const geo = new THREE.SphereGeometry(0.15, 8, 8);
+            const mat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.8 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, z);
+            scene.add(mesh);
+            return { mesh, life: 1.0, velocity: { x: (Math.random()-0.5)*0.3, y: Math.random()*0.4, z: (Math.random()-0.5)*0.3 } };
+        }
+        
+        function createExplosion(x, y, z, color, count = 15) {
+            for(let i = 0; i < count; i++) particles.push(createParticle(x, y, z, color));
+        }
+        
+        let snake = [];
+        let dir = { x: 1, z: 0 };
+        let nextDir = { x: 1, z: 0 };
+        let speed = 200;
+        let score = 0;
+        let highscore = localStorage.getItem('denaro_hs') || 0;
+        let running = false;
+        let moveTimer = null;
+        let animId = null;
+        
+        // SISTEMA COMBO
+        let combo = 1;
+        let comboTimer = null;
+        let comboTimeLeft = 0;
+        const COMBO_DURATION = 2000; // 2 secondi
+        
+        document.getElementById('highscore').textContent = '€' + highscore;
+        
+        function updateCombo() {
+            combo++;
+            const comboEl = document.getElementById('combo');
+            comboEl.textContent = 'x' + combo;
+            
+            // Mostra display combo
+            const display = document.getElementById('comboDisplay');
+            display.textContent = 'COMBO x' + combo + '!';
+            display.classList.add('show');
+            playSound('combo');
+            
+            // Timer visibile
+            const timerContainer = document.getElementById('comboTimer');
+            const timerBar = document.getElementById('comboBar');
+            timerContainer.classList.add('show');
+            comboTimeLeft = COMBO_DURATION;
+            
+            setTimeout(() => display.classList.remove('show'), 800);
+            
+            // Reset timer
+            if(comboTimer) clearInterval(comboTimer);
+            comboTimer = setInterval(() => {
+                comboTimeLeft -= 50;
+                timerBar.style.width = (comboTimeLeft / COMBO_DURATION * 100) + '%';
+                
+                if(comboTimeLeft <= 0) {
+                    clearInterval(comboTimer);
+                    combo = 1;
+                    comboEl.textContent = 'x1';
+                    timerContainer.classList.remove('show');
+                }
+            }, 50);
+        }
+        
+        function createSnake() {
+            snake.forEach(s => scene.remove(s.mesh));
+            snake = [];
+            for(let i = 0; i < 3; i++) {
+                const group = new THREE.Group();
+                const body = new THREE.Mesh(i === 0 ? headGeo : bodyGeo, i === 0 ? headMat : snakeMat);
+                body.castShadow = true;
+                group.add(body);
+                const belly = new THREE.Mesh(new THREE.SphereGeometry(i === 0 ? 0.35 : 0.3, 16, 16), bellyMat);
+                belly.position.y = -0.18;
+                belly.scale.y = 0.5;
+                group.add(belly);
+                if(i === 0) {
+                    const leftEye = new THREE.Group();
+                    const whiteL = new THREE.Mesh(eyeWhiteGeo, eyeWhiteMat);
+                    const pupilL = new THREE.Mesh(pupilGeo, pupilMat);
+                    pupilL.position.z = 0.15;
+                    leftEye.add(whiteL, pupilL);
+                    leftEye.position.set(0.28, 0.25, 0.22);
+                    group.add(leftEye);
+                    const rightEye = new THREE.Group();
+                    const whiteR = new THREE.Mesh(eyeWhiteGeo, eyeWhiteMat);
+                    const pupilR = new THREE.Mesh(pupilGeo, pupilMat);
+                    pupilR.position.z = 0.15;
+                    rightEye.add(whiteR, pupilR);
+                    rightEye.position.set(0.28, 0.25, -0.22);
+                    group.add(rightEye);
+                    const cheekGeo = new THREE.SphereGeometry(0.14, 8, 8);
+                    const cheekMat = new THREE.MeshBasicMaterial({ color: 0xffb6c1, transparent: true, opacity: 0.5 });
+                    const cheekL = new THREE.Mesh(cheekGeo, cheekMat);
+                    cheekL.position.set(0.18, 0.05, 0.38);
+                    cheekL.scale.y = 0.6;
+                    group.add(cheekL);
+                    const cheekR = new THREE.Mesh(cheekGeo, cheekMat);
+                    cheekR.position.set(0.18, 0.05, -0.38);
+                    cheekR.scale.y = 0.6;
+                    group.add(cheekR);
+                    const smileGeo = new THREE.TorusGeometry(0.18, 0.04, 8, 16, Math.PI);
+                    const smileMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
+                    const smile = new THREE.Mesh(smileGeo, smileMat);
+                    smile.position.set(0.4, 0, 0);
+                    smile.rotation.y = Math.PI / 2;
+                    smile.rotation.x = Math.PI;
+                    group.add(smile);
+                }
+                group.position.set(-i * 0.8, 0.5, 0);
+                scene.add(group);
+                snake.push({ mesh: group, x: -i * 0.8, z: 0 });
+            }
+            dir = { x: 1, z: 0 };
+            nextDir = { x: 1, z: 0 };
+        }
+        
+        function moveInDirection(newDir) {
+            if(!running || isBouncing) return;
+            if(newDir.x === -dir.x && newDir.z === -dir.z) return;
+            nextDir = newDir;
+            if(moveTimer) { clearTimeout(moveTimer); moveTimer = null; }
+            playSound('move');
+            moveSnake();
+            scheduleMove();
+        }
+        
+        function scheduleMove() {
+            if(!running || isBouncing) return;
+            moveTimer = setTimeout(() => {
+                if(running && !isBouncing) {
+                    playSound('move');
+                    moveSnake();
+                    scheduleMove();
+                }
+            }, speed);
+        }
+        
+        let targetPositions = [];
+        let currentProgress = 0;
+        let isBouncing = false;
+        
+        function moveSnake() {
+            dir = nextDir;
+            const step = 0.8;
+            const head = snake[0];
+            const newX = head.x + dir.x * step;
+            const newZ = head.z + dir.z * step;
+            
+            // Collisioni muri
+            if(newX < -HALF_FIELD + 0.5 || newX > HALF_FIELD - 0.5 || 
+               newZ < -HALF_FIELD + 0.5 || newZ > HALF_FIELD - 0.5) {
+                startBounceDeath();
+                return;
+            }
+            
+            // Collisioni se stesso
+            for(let i = 2; i < snake.length; i++) {
+                if(Math.abs(snake[i].x - newX) < 0.6 && Math.abs(snake[i].z - newZ) < 0.6) {
+                    startBounceDeath();
+                    return;
+                }
+            }
+            
+            // Salva posizioni
+            const oldPositions = snake.map(s => ({ x: s.x, z: s.z }));
+            
+            // Controlla monete
+            let ate = false;
+            let ateCoin = null;
+            for(let coin of coins) {
+                if(!coin.userData.eaten) {
+                    const d = Math.sqrt((newX - coin.position.x)**2 + (newZ - coin.position.z)**2);
+                    if(d < 1.1) {
+                        ate = true;
+                        ateCoin = coin;
+                        coin.userData.eaten = true;
+                        break;
+                    }
+                }
+            }
+            
+            if(!ate) {
+                const tail = snake.pop();
+                tail.x = newX;
+                tail.z = newZ;
+                snake.unshift(tail);
+            } else {
+                // Calcola punti con combo
+                const points = 10 * combo;
+                score += points;
+                document.getElementById('score').textContent = '€' + score;
+                
+                playSound('eat');
+                createExplosion(ateCoin.position.x, ateCoin.position.y, ateCoin.position.z, 0xffd93d);
+                
+                // Popup con combo
+                const el = document.createElement('div');
+                el.style.cssText = 'position:absolute;color:#ffd93d;font-weight:800;font-size:'+(24+combo*4)+'px;pointer-events:none;animation:pop 0.8s forwards;text-shadow:0 4px 0 rgba(0,0,0,0.2);z-index:50;left:'+(window.innerWidth/2-50)+'px;top:'+(window.innerHeight/2-50)+'px;font-family:Fredoka One;';
+                el.textContent = '+€' + points + (combo > 1 ? ' x' + combo : '');
+                document.body.appendChild(el);
+                setTimeout(() => el.remove(), 800);
+                
+                // Aggiorna combo
+                updateCombo();
+                
+                // Cresci
+                const newSeg = { 
+                    mesh: new THREE.Group(),
+                    x: newX, 
+                    z: newZ
+                };
+                const body = new THREE.Mesh(bodyGeo, snakeMat);
+                body.castShadow = true;
+                newSeg.mesh.add(body);
+                const belly = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), bellyMat);
+                belly.position.y = -0.18;
+                belly.scale.y = 0.5;
+                newSeg.mesh.add(belly);
+                newSeg.mesh.position.set(newX, 0.5, newZ);
+                scene.add(newSeg.mesh);
+                snake.unshift(newSeg);
+                
+                if(score % 50 === 0 && speed > 100) speed -= 10;
+                
+                // Rimpiazza moneta mangiata
+                setTimeout(() => placeCoins(), 100);
+            }
+            
+            // Setup interpolazione
+            targetPositions = snake.map((s, i) => ({
+                fromX: oldPositions[i] ? oldPositions[i].x : s.x,
+                fromZ: oldPositions[i] ? oldPositions[i].z : s.z,
+                toX: s.x,
+                toZ: s.z
+            }));
+            currentProgress = 0;
+        }
+        
+        // ANIMAZIONE RIMBALZO MORTE
+        let bounceData = { segments: [], velocity: [], time: 0 };
+        
+        function startBounceDeath() {
+            isBouncing = true;
+            if(moveTimer) clearTimeout(moveTimer);
+            playSound('die');
+            
+            // Prepara dati rimbalzo per ogni segmento
+            bounceData.segments = snake.map((s, i) => ({
+                mesh: s.mesh,
+                x: s.mesh.position.x,
+                y: s.mesh.position.y,
+                z: s.mesh.position.z,
+                vx: (Math.random() - 0.5) * 0.3,
+                vz: (Math.random() - 0.5) * 0.3,
+                vy: 0.2 + Math.random() * 0.3,
+                rotX: 0,
+                rotZ: 0,
+                vRotX: (Math.random() - 0.5) * 0.2,
+                vRotZ: (Math.random() - 0.5) * 0.2,
+                scale: 1
+            }));
+            
+            bounceData.time = 0;
+            animateBounce();
+        }
+        
+        function animateBounce() {
+            if(!isBouncing) return;
+            
+            bounceData.time += 0.016;
+            let allStopped = true;
+            
+            bounceData.segments.forEach((seg, i) => {
+                // Fisica rimbalzo
+                seg.vy -= 0.015; // gravità
+                seg.x += seg.vx;
+                seg.y += seg.vy;
+                seg.z += seg.vz;
+                
+                // Rimbalzo sul pavimento
+                if(seg.y < 0.3) {
+                    seg.y = 0.3;
+                    seg.vy *= -0.6; // perde energia
+                    seg.vx *= 0.8;
+                    seg.vz *= 0.8;
+                    if(Math.abs(seg.vy) > 0.05) {
+                        playSound('bounce');
+                        allStopped = false;
+                    }
+                }
+                
+                // Rotazione
+                seg.rotX += seg.vRotX;
+                seg.rotZ += seg.vRotZ;
+                
+                // Sgonfiamento progressivo
+                if(bounceData.time > 0.5) {
+                    seg.scale = Math.max(0.1, 1 - (bounceData.time - 0.5) * 0.8);
+                }
+                
+                // Applica
+                seg.mesh.position.set(seg.x, seg.y, seg.z);
+                seg.mesh.rotation.x = seg.rotX;
+                seg.mesh.rotation.z = seg.rotZ;
+                seg.mesh.scale.setScalar(seg.scale);
+                
+                if(seg.scale > 0.1) allStopped = false;
+            });
+            
+            // Particelle fumo verde
+            if(bounceData.time > 0.3 && Math.random() > 0.7) {
+                const seg = bounceData.segments[Math.floor(Math.random() * bounceData.segments.length)];
+                createExplosion(seg.x, seg.y, seg.z, 0x66bb6a, 3);
+            }
+            
+            renderer.render(scene, camera);
+            
+            if(!allStopped && bounceData.time < 3) {
+                requestAnimationFrame(animateBounce);
+            } else {
+                // Fine rimbalzo, mostra game over
+                setTimeout(() => showGameOver(), 500);
+            }
+        }
+        
+        function showGameOver() {
+            isBouncing = false;
+            
+            if(score > highscore) {
+                highscore = score;
+                localStorage.setItem('denaro_hs', highscore);
+                document.getElementById('highscore').textContent = '€' + highscore;
+                document.getElementById('newRecord').classList.remove('hidden');
+            } else {
+                document.getElementById('newRecord').classList.add('hidden');
+            }
+            
+            document.getElementById('finalScore').textContent = '€' + score;
+            document.getElementById('finalHigh').textContent = 'Record: €' + highscore;
+            document.getElementById('game-over').classList.remove('hidden');
+            document.getElementById('tapHint').classList.add('hidden');
+        }
+        
+        function setupControls() {
+            let sx, sy, st;
+            document.addEventListener('touchstart', (e) => { 
+                if(isBouncing) return;
+                sx = e.touches[0].clientX; 
+                sy = e.touches[0].clientY; 
+                st = Date.now(); 
+            }, {passive: true});
+            
+            document.addEventListener('touchend', (e) => {
+                if(!running || isBouncing) return;
+                const dx = e.changedTouches[0].clientX - sx;
+                const dy = e.changedTouches[0].clientY - sy;
+                const dt = Date.now() - st;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                
+                if(dt < 200 && dist < 30) {
+                    if(dir.x === 1) moveInDirection({x:0, z:-1});
+                    else if(dir.x === -1) moveInDirection({x:0, z:1});
+                    else if(dir.z === 1) moveInDirection({x:1, z:0});
+                    else if(dir.z === -1) moveInDirection({x:-1, z:0});
+                    return;
+                }
+                if(dist < 40) return;
+                
+                if(Math.abs(dx) > Math.abs(dy)) { 
+                    moveInDirection(dx > 0 ? {x:1, z:0} : {x:-1, z:0}); 
+                } else { 
+                    moveInDirection(dy > 0 ? {x:0, z:1} : {x:0, z:-1}); 
+                }
+            }, {passive: true});
+            
+            let mx, my, mt, md = false;
+            document.addEventListener('mousedown', (e) => { 
+                if(isBouncing) return;
+                md = true; 
+                mx = e.clientX; 
+                my = e.clientY; 
+                mt = Date.now(); 
+            });
+            
+            document.addEventListener('mouseup', (e) => {
+                if(!md || !running || isBouncing) return;
+                md = false;
+                const dx = e.clientX - mx;
+                const dy = e.clientY - my;
+                const dt = Date.now() - mt;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                
+                if(dt < 200 && dist < 30) {
+                    if(dir.x === 1) moveInDirection({x:0, z:-1});
+                    else if(dir.x === -1) moveInDirection({x:0, z:1});
+                    else if(dir.z === 1) moveInDirection({x:1, z:0});
+                    else if(dir.z === -1) moveInDirection({x:-1, z:0});
+                    return;
+                }
+                if(dist < 40) return;
+                
+                if(Math.abs(dx) > Math.abs(dy)) { 
+                    moveInDirection(dx > 0 ? {x:1, z:0} : {x:-1, z:0}); 
+                } else { 
+                    moveInDirection(dy > 0 ? {x:0, z:1} : {x:0, z:-1}); 
+                }
+            });
+            
+            document.getElementById('startBtn').onclick = (e) => { 
+                e.preventDefault(); 
+                initAudio(); 
+                playSound('eat'); 
+                startGame(); 
+            };
+            
+            document.getElementById('restartBtn').onclick = (e) => { 
+                e.preventDefault(); 
+                initAudio(); 
+                playSound('eat'); 
+                restartGame(); 
+            };
+        }
+        
+        function animate() {
+            if(!running || isBouncing) return;
+            requestAnimationFrame(animate);
+            const now = Date.now();
+            
+            // Interpolazione smooth
+            if(currentProgress < 1 && targetPositions.length > 0) {
+                currentProgress += 0.15;
+                
+                snake.forEach((seg, i) => {
+                    if(targetPositions[i]) {
+                        const t = Math.min(currentProgress, 1);
+                        const ease = 1 - Math.pow(1 - t, 3);
+                        
+                        seg.mesh.position.x = targetPositions[i].fromX + (targetPositions[i].toX - targetPositions[i].fromX) * ease;
+                        seg.mesh.position.z = targetPositions[i].fromZ + (targetPositions[i].toZ - targetPositions[i].fromZ) * ease;
+                        seg.mesh.position.y = 0.5 + Math.sin(now * 0.006 + i * 0.7) * 0.05;
+                        
+                        const dx = targetPositions[i].toX - targetPositions[i].fromX;
+                        const dz = targetPositions[i].toZ - targetPositions[i].fromZ;
+                        if(Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01) {
+                            seg.mesh.rotation.y = Math.atan2(dx, dz);
+                        }
+                    }
+                });
+            }
+            
+            // Scia
+            if(currentProgress > 0 && currentProgress < 0.8 && snake[0]) {
+                if(Math.random() > 0.7) {
+                    trailParticles.push(createTrailParticle(
+                        snake[0].mesh.position.x + (Math.random()-0.5)*0.3, 
+                        0.25, 
+                        snake[0].mesh.position.z + (Math.random()-0.5)*0.3
+                    ));
+                }
+            }
+            
+            // Particelle scia
+            for(let i = trailParticles.length - 1; i >= 0; i--) {
+                const p = trailParticles[i];
+                p.life -= 0.04;
+                p.mesh.material.opacity = p.life * 0.5;
+                p.mesh.scale.setScalar(p.life * 0.8);
+                if(p.life <= 0) {
+                    scene.remove(p.mesh);
+                    trailParticles.splice(i, 1);
+                }
+            }
+            
+            // Particelle esplosione
+            for(let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.life -= 0.02;
+                p.mesh.position.x += p.velocity.x;
+                p.mesh.position.y += p.velocity.y;
+                p.mesh.position.z += p.velocity.z;
+                p.mesh.material.opacity = p.life;
+                p.mesh.scale.setScalar(p.life);
+                if(p.life <= 0) {
+                    scene.remove(p.mesh);
+                    particles.splice(i, 1);
+                }
+            }
+            
+            // Anima monete
+            coins.forEach((coin, i) => {
+                if(!coin.userData.eaten) {
+                    coin.rotation.y += 0.04;
+                    coin.position.y = 1.2 + Math.sin(now * 0.004 + i) * 0.15;
+                }
+            });
+            
+            renderer.render(scene, camera);
+        }
+        
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('tapHint').classList.remove('hidden');
+            
+            score = 0;
+            combo = 1;
+            speed = 200;
+            isBouncing = false;
+            
+            document.getElementById('score').textContent = '€0';
+            document.getElementById('combo').textContent = 'x1';
+            document.getElementById('newRecord').classList.add('hidden');
+            
+            // Pulisci
+            trailParticles.forEach(p => scene.remove(p.mesh));
+            trailParticles.length = 0;
+            particles.forEach(p => scene.remove(p.mesh));
+            particles.length = 0;
+            coins.forEach(c => scene.remove(c));
+            coins = [];
+            
+            if(comboTimer) clearInterval(comboTimer);
+            document.getElementById('comboTimer').classList.remove('show');
+            
+            createSnake();
+            placeCoins();
+            
+            targetPositions = [];
+            currentProgress = 1;
+            running = true;
+            animate();
+            setTimeout(() => { moveSnake(); scheduleMove(); }, 500);
+        }
+        
+        function restartGame() {
+            document.getElementById('game-over').classList.add('hidden');
+            startGame();
+        }
+        
+        window.addEventListener('resize', () => {
+            updateCamera();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        setupControls();
+        renderer.render(scene, camera);
+    </script>
+</body>
+</html>
